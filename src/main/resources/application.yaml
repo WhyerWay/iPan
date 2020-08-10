@@ -1,0 +1,69 @@
+server:
+   port: 8080
+spring:
+   main:
+      banner-mode: off
+   output:
+      ansi.enabled: always
+   redis:
+      database: 4
+      host: localhost
+      password: 
+      port: 6379
+      timeout: 2000
+      max-idle: 8
+      min-idle: 0
+      max-active: 8
+      max-wait: -1
+   datasource:
+      type: com.alibaba.druid.pool.DruidDataSource
+      url: jdbc:mysql://localhost:3306/ipan?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true
+      username: root
+      password: '0000' # lower version use 0000 without ''
+      
+      initialSize: 5
+      minIdle: 5
+      maxActive: 20
+      maxWait: 60000
+      timeBetweenEvictionRunsMillis: 60000
+      minEvictableIdleTimeMillis: 300000
+      validationQuery: SELECT 1 FROM DUAL
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+      poolPreparedStatements: true
+      #配置监控统计拦截的filters，stat:监控统计、slf4j(logback)：日志记录、wall：防御sql注入
+      filters: stat,wall,slf4j
+      maxPoolPreparedStatementPerConnectionSize: 20
+      useGlobalDataSourceStat: true
+      connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=500
+
+mybatis-plus:
+   mapper-locations: classpath:mapper/*.xml
+   typeAliasesPackage: indi.ipan.model
+   configuration:
+      map-underscore-to-camel-case: true
+   global-config:
+      banner: false
+      #主键类型  0:"数据库ID自增", 1:"用户输入ID",2:"全局唯一ID (数字类型唯一ID)", 3:"全局唯一ID UUID";
+      #id-type: 0
+      #字段策略 0:"忽略判断",1:"非 NULL 判断"),2:"非空判断"
+      #field-strategy: 2
+      #驼峰下划线转换
+      db-column-underline: true
+      db-config:
+         id-type: 0
+         table-underline: true
+      
+logging:
+   level:
+      root: info
+      indi.ipan.mapper: debug
+      #indi.ipan.dao: debug
+   file:
+      name: debug.log
+      #path:
+      #max-size:
+      #max-history:
+      #total-size-cap:
+      #clean-history-on-start:

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="indi.ipan.dao.UserDao">
+    <select id="isUsernameExist" parameterType="user" resultType="Boolean">
+        select 1 from user where username = #{username}
+    </select>
+    <select id="countUser" resultType="Integer">
+        select count(*) from user
+    </select>
+    <insert id="addUser" parameterType="user">
+        insert into user (username,password) values(#{username}, #{password})
+    </insert>
+    <insert id="batchAddUser" parameterType="java.util.List">
+        insert ignore into user (username, password) values
+            <foreach collection="list" item="item" index="index" separator=",">
+                (#{item.username}, #{item.password})
+            </foreach>
+    </insert>
+    <select id="matchPassword" parameterType="user" resultType="Boolean">
+        select 1 from user where username = #{username} and password = #{password}
+    </select>
+    
+    <update id="changePassword" parameterType="user">
+        update user set password = #{password} where username = #{username}
+    </update>
+    
+    <delete id="deleteUser" parameterType="String">
+        delete from user where username = #{username}
+    </delete>
+    <delete id="deleteAllUser" >
+        delete from user;
+    </delete>
+    <select id="getOneUser" parameterType="String" resultType="user">
+        select username, password from user where username = #{username}
+    </select>
+    <select id="getAllUser" resultType="user">
+        select username, password from user
+    </select>
+</mapper>
