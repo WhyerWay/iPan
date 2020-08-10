@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.crypto.Data;
+
 import org.mybatis.spring.annotation.MapperScan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +19,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -100,22 +103,46 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
     @SuppressWarnings("rawtypes")
     @Override
     public Result renameFile(File oldFile, File newFile) {
-        if (!isFilenameExist(oldFile)) {
-            throw new CustomizedExcption(ResultEnum.TARGET_FILE_NOT_EXIST);
-        }
-        if (isFilenameExist(newFile)) {
-            throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
-        }
-        if (fileMapperTest.update(newFile, new UpdateWrapper<File>(oldFile)) != 1) {
+        List<FileSystemOperationResult> resultList = null;
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(oldFile.getUsername());
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1);
+        // save operation log and get id
+        if (!logService.addOperationLog(userOperationLog)) {
             throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
-        if (fileSystemUtil.renameFile(oldFile.getUsername()
-                , oldFile.getFileName()
-                , newFile.getFileName())) {
-            return resultUtil.success();
-        }else {
-            throw new CustomizedExcption(ResultEnum.UNKONW_ERROR);
+        TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
+        try {
+            if (!isFilenameExist(oldFile)) {
+                throw new CustomizedExcption(ResultEnum.TARGET_FILE_NOT_EXIST);
+            }
+            if (isFilenameExist(newFile)) {
+                throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
+            }
+            if (fileMapperTest.update(newFile, new UpdateWrapper<File>(oldFile)) != 1) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            resultList = fileSystemUtil.renameFile(userOperationLog.getId()
+                    , oldFile.getUsername()
+                    , oldFile.getFileName()
+                    , newFile.getFileName());
+            int i = 1/0;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            // rollback database
+            dataSourceTransactionManager.rollback(transactionStatus);
+            // rollback file system operation
+            fileSystemUtil.rollback(resultList);
+            //  throw it again so that GlobalExceptionHandler can process it
+            throw e;
         }
+        // commit database
+        dataSourceTransactionManager.commit(transactionStatus);
+        // commit file system operation
+        fileSystemUtil.commit(resultList);
+        return resultUtil.success();
     }
 
     @Override

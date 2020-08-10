@@ -29,7 +29,7 @@ public class DummyTest {
     
     @Test
     public void test() {
-        Result result = fillController.renameFile("1234", "9", "1");
+        Result result = fillController.renameFile("1234", "6", "7");
         System.out.println(result);
     }
 

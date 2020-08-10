@@ -34,8 +34,6 @@ public class FileSystemUtil {
                 }
             }else if (!cacheFile.renameTo(destFile)) {
                 throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
-            }else {
-                throw new CustomizedExcption(ResultEnum.UNKONW_ERROR);
             }
         }
     }
@@ -44,11 +42,13 @@ public class FileSystemUtil {
      * @param resultList list of file operation path including origin, cache and destination
      */
     public void rollback(List<FileSystemOperationResult> resultList) {
-        for (FileSystemOperationResult result : resultList) {
-            File originFile = new File(result.getOrigin());
-            File cacheFile = new File(result.getCache());
-            if (!cacheFile.renameTo(originFile)) {
-                throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+        if (resultList != null) {
+            for (FileSystemOperationResult result : resultList) {
+                File originFile = new File(result.getOrigin());
+                File cacheFile = new File(result.getCache());
+                if (!cacheFile.renameTo(originFile)) {
+                    throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+                }
             }
         }
     }
@@ -92,9 +92,23 @@ public class FileSystemUtil {
         return file.delete();
     }
     
-    public Boolean renameFile(String username, String oldFileName, String newFileName) {
-        File oldFile = new File(LOCAL_FILE_SYSTEM_PATH + username, oldFileName);
-        return oldFile.renameTo(new File(LOCAL_FILE_SYSTEM_PATH + username, newFileName));
+//    public Boolean renameFile(String username, String oldFileName, String newFileName) {
+//        File oldFile = new File(LOCAL_FILE_SYSTEM_PATH + username, oldFileName);
+//        return oldFile.renameTo(new File(LOCAL_FILE_SYSTEM_PATH + username, newFileName));
+//    }
+    
+    public List<FileSystemOperationResult> renameFile(Integer id, String username, String oldFileName, String newFileName) {
+        List<FileSystemOperationResult> resultList = new ArrayList<>();
+        FileSystemOperationResult result = new FileSystemOperationResult();
+        result.setDestination(LOCAL_FILE_SYSTEM_PATH + username + File.separator + newFileName);
+        result.setCache(LOCAL_FILE_SYSTEM_CACHE_PATH + id.toString() + username + oldFileName);
+        result.setOrigin(LOCAL_FILE_SYSTEM_PATH + username + File.separator + oldFileName);
+        File originFile = new File(result.getOrigin());
+        if (!originFile.renameTo(new File(result.getCache()))) {
+            throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+        }
+        resultList.add(result);
+        return resultList;
     }
     
     public Boolean uploadFile(String username, MultipartFile file) {
