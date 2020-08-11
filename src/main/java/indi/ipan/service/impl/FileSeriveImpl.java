@@ -27,15 +27,10 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
-//import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-//import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-
 import indi.ipan.dao.FileDao;
-import indi.ipan.dao.LogDao;
 import indi.ipan.exception.CustomizedExcption;
 import indi.ipan.exception.ResultEnum;
 import indi.ipan.mapper.FileMapperTest;
-//import indi.ipan.mapper.FileMapperTest;
 import indi.ipan.model.File;
 import indi.ipan.model.FileSystemOperationResult;
 import indi.ipan.model.ServiceResult;
@@ -48,7 +43,6 @@ import indi.ipan.util.FileSystemUtil;
 
 @Service
 @MapperScan("indi.ipan.dao")
-//public class FileSeriveImpl implements FileService{
 public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements FileService{
     @Autowired
     private FileDao fileDao;
@@ -109,32 +103,38 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         userOperationLog.setUsername(oldFile.getUsername());
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(1);
-        // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
         TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
         try {
+            // save operation log and get id
+            if (!logService.addOperationLog(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            // validate old file name
             if (!isFilenameExist(oldFile)) {
                 throw new CustomizedExcption(ResultEnum.TARGET_FILE_NOT_EXIST);
             }
+            // validate new file name
             if (isFilenameExist(newFile)) {
                 throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
             }
+            // update database
             if (fileMapperTest.update(newFile, new UpdateWrapper<File>(oldFile)) != 1) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
+            // update file system
             resultList = fileSystemUtil.renameFile(userOperationLog.getId()
                     , oldFile.getUsername()
                     , oldFile.getFileName()
                     , newFile.getFileName());
-            int i = 1/0;
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             // rollback database
             dataSourceTransactionManager.rollback(transactionStatus);
             // rollback file system operation
             fileSystemUtil.rollback(resultList);
+            // update operation status
+            userOperationLog.setStatus(false);
+            logService.addOperationResult(userOperationLog);
             //  throw it again so that GlobalExceptionHandler can process it
             throw e;
         }
@@ -142,6 +142,9 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         dataSourceTransactionManager.commit(transactionStatus);
         // commit file system operation
         fileSystemUtil.commit(resultList);
+        // update operation status
+        userOperationLog.setStatus(true);
+        logService.addOperationResult(userOperationLog);
         return resultUtil.success();
     }
 

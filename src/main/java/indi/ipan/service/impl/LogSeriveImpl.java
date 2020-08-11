@@ -3,25 +3,30 @@ package indi.ipan.service.impl;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
-import indi.ipan.dao.LogDao;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+
+import indi.ipan.mapper.LogMapperTest;
 import indi.ipan.model.UserOperationLog;
 import indi.ipan.service.LogService;
 
 @Service
 @MapperScan("indi.ipan.dao")
-public class LogSeriveImpl implements LogService{
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public class LogSeriveImpl extends ServiceImpl<LogMapperTest, UserOperationLog> implements LogService{
     @Autowired
-    private LogDao logDao;
+    LogMapperTest logMapperTest;
 
     @Override
     public Boolean addOperationLog(UserOperationLog userOperationLog) {
-        return logDao.addLog(userOperationLog) == 1;
+        return logMapperTest.insert(userOperationLog) == 1;
     }
 
     @Override
     public Boolean addOperationResult(UserOperationLog userOperationLog) {
-        return logDao.addResult(userOperationLog) == 1;
+        return logMapperTest.updateById(userOperationLog) == 1;
     }
 
 
