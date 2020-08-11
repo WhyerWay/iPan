@@ -3,7 +3,6 @@ package indi.ipan.model;
 import java.io.Serializable;
 import java.util.List;
 
-import javax.annotation.Resource;
 
 import org.springframework.stereotype.Component;
 

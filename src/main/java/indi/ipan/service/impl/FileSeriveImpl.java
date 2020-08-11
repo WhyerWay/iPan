@@ -8,6 +8,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Description;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionDefinition;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import indi.ipan.dao.FileDao;
@@ -35,7 +37,7 @@ import indi.ipan.util.FileSystemUtil;
 
 @Service
 @MapperScan("indi.ipan.dao")
-public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements FileService{
+public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements FileService {
     @Autowired
     private FileDao fileDao;
     @Autowired
@@ -82,7 +84,7 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
 
     @SuppressWarnings("rawtypes")
     @Override
-    public Result listFile(Long current, Long size) {
+    public Result listAllFile(Long current, Long size) {
         // create log object
         UserOperationLog userOperationLog = new UserOperationLog();
         userOperationLog.setUsername("admin");
@@ -128,11 +130,7 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         }
         return resultUtil.success(files);
     }
-    
-    @Override
-    public Boolean isFilenameExist(File file) {
-        return fileMapperTest.selectCount(new QueryWrapper<File>(file)) == 1;
-    }
+
 
     @SuppressWarnings("rawtypes")
     @Override
@@ -192,70 +190,155 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         return resultUtil.success();
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    public Integer uploadFile(String username, MultipartFile file) {
-        if (file.isEmpty()) {
-            return -1;
-        }
-        String fileName = file.getOriginalFilename();
-        File file_db = new File();
-        file_db.setUsername(username);
-        file_db.setFileName(fileName);
-        if (fileDao.isFilenameExist(file_db) != null) {
-            return -2;
-        }
-        if (fileDao.addFile(file_db) != 1) {
-            return -3;
-        }
-        if (fileSystemUtil.uploadFile(username, file)) {
-            return 0;
-        }else {
-            return -4;
-        }
-    }
-
-    @Override
-    public ServiceResult uploadMultiFile(String username, MultipartFile[] file) {
-        ServiceResult result = new ServiceResult();
-        List<String> errorInfo = new ArrayList<>();
-        List<String> filenames = new ArrayList<>();
-        // filter empty files
-        for (MultipartFile f : file) {
-            if (f.isEmpty()) {
-                errorInfo.add(f.getOriginalFilename());
-                continue;
+    public Result uploadFile(String username, MultipartFile file) {
+        Stack<FileSystemOperationResult> resultStack = null;
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(username);
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
+        TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
+        try {
+            // save operation log and get id
+            if (!logService.addOperationLog(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
-            filenames.add(f.getOriginalFilename());
+            // validate file name
+            File uploadFile = new File(username, file.getOriginalFilename());
+            if (isFilenameExist(uploadFile)) {
+                throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
+            }
+            // update database
+            if (fileMapperTest.insert(uploadFile) != 1) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            // update file system
+            resultStack = fileSystemUtil.uploadFile(userOperationLog.getId(), username, file);
+            int i = 1/0;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            // rollback database
+            dataSourceTransactionManager.rollback(transactionStatus);
+            // rollback file system operation
+            fileSystemUtil.rollback(resultStack);
+            // update operation status
+            userOperationLog.setStatus(false);
+            if (!logService.addOperationResult(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            //  throw it again so that GlobalExceptionHandler can process it
+            throw e;
         }
-        if (!errorInfo.isEmpty()) {
-            result.setIndex(-1);
-            result.setErrorInfo(errorInfo);
-            return result;
+        // commit database
+        dataSourceTransactionManager.commit(transactionStatus);
+        // commit file system operation
+        fileSystemUtil.commit(resultStack);
+        // update operation status
+        userOperationLog.setStatus(true);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
-        // filter duplicated file name
-        errorInfo = fileDao.isMultiFilenameExist(username, filenames);
-        if (!errorInfo.isEmpty()) {
-            result.setIndex(-2);
-            result.setErrorInfo(errorInfo);
-            return result;
-        }
-        // insert in database
-        Integer num_db = fileDao.addMultiFile(username, filenames);
-        result.setIndex(num_db);
-        if (num_db <= 0) {
-            result.setIndex(-3);
-            return result;
-        }
-        // transfer to file system
-        Integer num_f = fileSystemUtil.uploadMultiFile(username, file);
-        if (num_f != num_db) {
-            result.setIndex(-4);
-            return result;
-        }
-        result.setErrorInfo(null);
-        return result;
+        return resultUtil.success();
     }
 
+    @SuppressWarnings("rawtypes")
+    @Override
+    public Result uploadMultiFile(String username, MultipartFile[] file) {
+        Stack<FileSystemOperationResult> resultStack = null;
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(username);
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(0L);
+        TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
+        try {
+            // save operation log and get id
+            if (!logService.addOperationLog(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            // validate file name
+            List<File> uploadFile = new ArrayList<>();
+            for (MultipartFile fileItem : file) {
+                File uploadFileItem = new File(username, fileItem.getOriginalFilename());
+                uploadFile.add(uploadFileItem);
+            }
+            if (isFilenameExist(uploadFile)) { // should return which file name is invalid
+                throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
+            }
+            // update database
+            if (!this.saveBatch(uploadFile)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            // update file system
+            resultStack = fileSystemUtil.uploadFile(userOperationLog.getId(), username, file);
+            int i = 1/0;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            // rollback database
+            dataSourceTransactionManager.rollback(transactionStatus);
+            // rollback file system operation
+            fileSystemUtil.rollback(resultStack);
+            // update operation status
+            userOperationLog.setStatus(false);
+            if (!logService.addOperationResult(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            //  throw it again so that GlobalExceptionHandler can process it
+            throw e;
+        }
+        // commit database
+        dataSourceTransactionManager.commit(transactionStatus);
+        // commit file system operation
+        fileSystemUtil.commit(resultStack);
+        // update operation status
+        userOperationLog.setStatus(true);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        return resultUtil.success();
+//        ServiceResult result = new ServiceResult();
+//        List<String> errorInfo = new ArrayList<>();
+//        List<String> filenames = new ArrayList<>();
+//        // filter empty files
+//        for (MultipartFile f : file) {
+//            if (f.isEmpty()) {
+//                errorInfo.add(f.getOriginalFilename());
+//                continue;
+//            }
+//            filenames.add(f.getOriginalFilename());
+//        }
+//        if (!errorInfo.isEmpty()) {
+//            result.setIndex(-1);
+//            result.setErrorInfo(errorInfo);
+//            return result;
+//        }
+//        // filter duplicated file name
+//        errorInfo = fileDao.isMultiFilenameExist(username, filenames);
+//        if (!errorInfo.isEmpty()) {
+//            result.setIndex(-2);
+//            result.setErrorInfo(errorInfo);
+//            return result;
+//        }
+//        // insert in database
+//        Integer num_db = fileDao.addMultiFile(username, filenames);
+//        result.setIndex(num_db);
+//        if (num_db <= 0) {
+//            result.setIndex(-3);
+//            return result;
+//        }
+//        // transfer to file system
+//        Integer num_f = fileSystemUtil.uploadMultiFile(username, file);
+//        if (num_f != num_db) {
+//            result.setIndex(-4);
+//            return result;
+//        }
+//        result.setErrorInfo(null);
+//        return result;
+    }
+
+    @SuppressWarnings("rawtypes")
     @Override
     public Result deleteFile(File file){
         Stack<FileSystemOperationResult> resultStack = null;
@@ -335,9 +418,6 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
             }
             // process file in file system
             resultStack = fileSystemUtil.deleteUserFolder(userOperationLog.getId(), username);
-//            if (resultStack.size() != count) {
-//                throw new CustomizedExcption(ResultEnum.MISMATCH_RESULT_OF_DATABASE_AND_FILE_SYSTEM);
-//            }
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             // rollback database
@@ -365,5 +445,15 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         return resultUtil.success();
     }
 
-
+    private Boolean isFilenameExist(File file) {
+        return fileMapperTest.selectCount(new QueryWrapper<File>(file)) == 1;
+    }
+    private Boolean isFilenameExist(List<File> file) {
+        for (File fileItem : file) {
+            if (fileMapperTest.selectCount(new QueryWrapper<File>(fileItem)) == 1) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

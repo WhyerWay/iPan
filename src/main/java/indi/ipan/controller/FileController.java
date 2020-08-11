@@ -73,75 +73,58 @@ public class FileController {
         File newFile = new File(username, newFileName);
         return fileService.renameFile(oldFile, newFile);
     }
-    
-    @RequestMapping(value = "/menu/upload", method = RequestMethod.POST)
-    @ResponseBody
-    public String upload(@RequestParam String username, @RequestParam MultipartFile file) {
-        Integer res = fileService.uploadFile(username, file);
-        if (res == 0) {
-            return "Upload success";
-        }else if (res == -1){
-            return "Error: File is empty";
-        }else if (res == -2) {
-            return "Error: Duplicated file name";
-        }else if (res == -3) {
-            return "Error: Insert operation in database fail";
-        }else if (res == -4) {
-            return "Error: Upload operation in file system fail";
-        }else {
-            return "Error: Unexpected error";
-        }
+    /**
+     * uplaod a file in file system for given username
+     * @param username username of user
+     * @param file target file
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/menu/upload")
+    public Result upload(@RequestParam String username, @RequestParam MultipartFile file) {
+        return fileService.uploadFile(username, file);
     }
-    
-    @RequestMapping(value = "/menu/batch-upload", method = RequestMethod.POST)
-    @ResponseBody
-    public String batchUpload(@RequestParam String username
+    /**
+     * uplaod a list of file in file system for given username
+     * @param username username username of user
+     * @param file target list of file
+     * @return (200, success, number of file) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/menu/batch-upload")
+    public Result batchUpload(@RequestParam String username
             , @RequestParam MultipartFile[] file) {
-        ServiceResult result = fileService.uploadMultiFile(username, file);
-        Integer index = result.getIndex();
-        if (index > 0) {
-            return index + " file uploaded success";
-        }else if (index == -1){
-            StringBuilder sb = new StringBuilder();
-            sb.append("Error: Empty file exist\nError file name list:");
-            for(String str : result.getErrorInfo()){
-                sb.append(" ");
-                sb.append(str);
-            }
-            return sb.toString();
-        }else if (index == -2) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("Error: Duplicated file name\nError file name list:");
-            for(String str : result.getErrorInfo()){
-                sb.append(" ");
-                sb.append(str);
-            }
-            return sb.toString();
-        }else if (index == -3) {
-            return "Error: Insert operation in database fail";
-        }else if (index == -4) {
-            return "Error: Upload operation in file system fail";
-        }else {
-            return "Error: Unexpected error";
-        }
+        return fileService.uploadMultiFile(username, file);
+//        ServiceResult result = fileService.uploadMultiFile(username, file);
+//        Integer index = result.getIndex();
+//        if (index > 0) {
+//            return index + " file uploaded success";
+//        }else if (index == -1){
+//            StringBuilder sb = new StringBuilder();
+//            sb.append("Error: Empty file exist\nError file name list:");
+//            for(String str : result.getErrorInfo()){
+//                sb.append(" ");
+//                sb.append(str);
+//            }
+//            return sb.toString();
+//        }else if (index == -2) {
+//            StringBuilder sb = new StringBuilder();
+//            sb.append("Error: Duplicated file name\nError file name list:");
+//            for(String str : result.getErrorInfo()){
+//                sb.append(" ");
+//                sb.append(str);
+//            }
+//            return sb.toString();
+//        }else if (index == -3) {
+//            return "Error: Insert operation in database fail";
+//        }else if (index == -4) {
+//            return "Error: Upload operation in file system fail";
+//        }else {
+//            return "Error: Unexpected error";
+//        }
     }
     
-//    @RequestMapping(value = "/menu/delete", method = RequestMethod.POST)
-//    @ResponseBody
-//    public String delete(@RequestParam String username
-//            , @RequestParam String file_name) {
-//        File file = new File();
-//        file.setUsername(username);
-//        file.setFile_name(file_name);
-//        if (!fileService.isFilenameExist(file)) {
-//            return "Error: File does not exist";
-//        }
-//        if (fileService.deleteFile(file)) {
-//            return "File delete success";
-//        }else {
-//            return "File delete fail";
-//        }
-//    }
+    @SuppressWarnings("rawtypes")
     @RequestMapping(value = "/menu/delete", method = RequestMethod.POST)
     @ResponseBody
     public Result delete(@RequestParam String username
@@ -152,6 +135,7 @@ public class FileController {
         return fileService.deleteFile(file);
     }
     
+    @SuppressWarnings("rawtypes")
     @RequestMapping(value = "/menu/clear", method = RequestMethod.POST)
     @ResponseBody
     public Result clear(@RequestParam String username) {

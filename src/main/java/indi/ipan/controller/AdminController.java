@@ -53,7 +53,7 @@ public class AdminController {
     @GetMapping(value = "/admin/files")
     public Result checkAllFile(@RequestParam(value = "current", defaultValue = "1") Long current
             , @RequestParam(value = "size", defaultValue = "-1") Long size) {
-	    return fileService.listFile(current, size);
+	    return fileService.listAllFile(current, size);
 	}
 	
 	@RequestMapping(value = "/admin", method = RequestMethod.GET)

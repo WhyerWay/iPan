@@ -1,10 +1,11 @@
 package indi.ipan.util;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
 import java.util.Stack;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -14,6 +15,7 @@ import indi.ipan.model.FileSystemOperationResult;
 
 @Component
 public class FileSystemUtil {
+    private final static Logger logger = LoggerFactory.getLogger(FileSystemUtil.class);
     private static final String LOCAL_FILE_SYSTEM_PATH = 
             "C:\\Users\\Administrator\\eclipse-workspace\\iPan\\src\\file_system\\";
     private static final String LOCAL_FILE_SYSTEM_CACHE_PATH = 
@@ -27,15 +29,18 @@ public class FileSystemUtil {
             FileSystemOperationResult result = resultStack.pop();
             File cacheFile = new File(result.getCache());
             File destFile = null;
-            if (result.getDestination() != null) {
-                destFile = new File(result.getDestination());
-            }
-            if (result.getDestination() == null) {
+            if (result.getDestination() == null) { // destination path does not exist
                 if (!cacheFile.delete()) {
                     throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
                 }
-            }else if (!cacheFile.renameTo(destFile)) {
-                throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+            }else { // destination path exists
+                destFile = new File(result.getDestination());
+                if (!destFile.getParentFile().exists()) { // create folder if needed
+                    destFile.getParentFile().mkdir();
+                }
+                if (!cacheFile.renameTo(destFile)) {
+                    throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+                }
             }
         }
     }
@@ -47,21 +52,20 @@ public class FileSystemUtil {
         if (resultStack != null) {
             while (!resultStack.empty()) {
                 FileSystemOperationResult result = resultStack.pop();
-                File originFile = new File(result.getOrigin());
                 File cacheFile = new File(result.getCache());
-                if (!cacheFile.renameTo(originFile)) {
-                    throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+                File originFile = null;
+                if (result.getOrigin() == null) { // original path does not exist
+                    if (!cacheFile.delete()) {
+                        throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+                    }
+                }else { // original path exists
+                    originFile = new File(result.getOrigin());
+                    if (!cacheFile.renameTo(originFile)) {
+                        throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+                    }
                 }
             }
         }
-    }
-    @Deprecated
-    public Boolean openFileSystem() {
-        File baseFolder = new File(LOCAL_FILE_SYSTEM_PATH);
-        if (!baseFolder.exists()) {
-            return baseFolder.mkdir();
-        }
-        return true;
     }
     /**
      * delete one file from file system
@@ -121,19 +125,32 @@ public class FileSystemUtil {
         resultStack.add(result);
         return resultStack;
     }
-    public Boolean uploadFile(String username, MultipartFile file) {
+    public Stack<FileSystemOperationResult> uploadFile(Integer id, String username, MultipartFile file) {
+        Stack<FileSystemOperationResult> resultStack = new Stack<>();
+        FileSystemOperationResult result = new FileSystemOperationResult();
         String fileName = file.getOriginalFilename();
-        File filepath = new File(LOCAL_FILE_SYSTEM_PATH + username, fileName);
-        if (!filepath.getParentFile().exists()) {
-            filepath.getParentFile().mkdirs();
-        }
+        result.setDestination(LOCAL_FILE_SYSTEM_PATH + username + File.separator + fileName);
+        result.setCache(LOCAL_FILE_SYSTEM_CACHE_PATH + id.toString() + username + fileName);
+        result.setOrigin(null);
         try {
-            file.transferTo(new File(LOCAL_FILE_SYSTEM_PATH + username + File.separator + fileName));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+            file.transferTo(new File(result.getCache()));
+        } catch (IllegalStateException | IOException e) {
+            logger.error(e.getMessage(), e);
+            throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
         }
-        return true;
+        resultStack.add(result);
+        return resultStack;
+//        File filepath = new File(LOCAL_FILE_SYSTEM_PATH + username, fileName);
+//        if (!filepath.getParentFile().exists()) {
+//            filepath.getParentFile().mkdirs();
+//        }
+//        try {
+//            file.transferTo(new File(LOCAL_FILE_SYSTEM_PATH + username + File.separator + fileName));
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return false;
+//        }
+//        return true;
     }
     
     public Integer uploadMultiFile(String username, MultipartFile[] file) {
@@ -209,5 +226,12 @@ public class FileSystemUtil {
             throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
         }
         resultStack.add(result);
+    }
+    private Boolean openFileSystem() { //TODO
+        File baseFolder = new File(LOCAL_FILE_SYSTEM_PATH);
+        if (!baseFolder.exists()) {
+            return baseFolder.mkdir();
+        }
+        return true;
     }
 }
