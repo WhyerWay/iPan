@@ -3,6 +3,7 @@ package indi.ipan.util;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,10 +20,11 @@ public class FileSystemUtil {
             "C:\\Users\\Administrator\\eclipse-workspace\\iPan\\src\\cache\\";
     /**
      * commit file system operation
-     * @param resultList list of file operation path including origin, cache and destination
+     * @param resultStack list of file operation path including origin, cache and destination
      */
-    public void commit(List<FileSystemOperationResult> resultList) {
-        for (FileSystemOperationResult result : resultList) {
+    public void commit(Stack<FileSystemOperationResult> resultStack) {
+        while (!resultStack.empty()) {
+            FileSystemOperationResult result = resultStack.pop();
             File cacheFile = new File(result.getCache());
             File destFile = null;
             if (result.getDestination() != null) {
@@ -39,11 +41,12 @@ public class FileSystemUtil {
     }
     /**
      * rollback file system operation
-     * @param resultList list of file operation path including origin, cache and destination
+     * @param resultStack list of file operation path including origin, cache and destination
      */
-    public void rollback(List<FileSystemOperationResult> resultList) {
-        if (resultList != null) {
-            for (FileSystemOperationResult result : resultList) {
+    public void rollback(Stack<FileSystemOperationResult> resultStack) {
+        if (resultStack != null) {
+            while (!resultStack.empty()) {
+                FileSystemOperationResult result = resultStack.pop();
                 File originFile = new File(result.getOrigin());
                 File cacheFile = new File(result.getCache());
                 if (!cacheFile.renameTo(originFile)) {
@@ -52,6 +55,7 @@ public class FileSystemUtil {
             }
         }
     }
+    @Deprecated
     public Boolean openFileSystem() {
         File baseFolder = new File(LOCAL_FILE_SYSTEM_PATH);
         if (!baseFolder.exists()) {
@@ -59,46 +63,53 @@ public class FileSystemUtil {
         }
         return true;
     }
-    public List<FileSystemOperationResult> deleteFile(Integer id, String username, String filename) {
-        List<FileSystemOperationResult> resultList = new ArrayList<>();
-        FileSystemOperationResult result = new FileSystemOperationResult();
-        result.setDestination(null);
-        result.setCache(LOCAL_FILE_SYSTEM_CACHE_PATH + id.toString() + username + filename);
-        result.setOrigin(LOCAL_FILE_SYSTEM_PATH + username + File.separator + filename);
-        File originFile = new File(result.getOrigin());
-        if (!originFile.renameTo(new File(result.getCache()))) {
-            throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
-        }
-        resultList.add(result);
-        return resultList;
+    /**
+     * delete one file from file system
+     * @param id id of current operation log
+     * @param username username of file
+     * @param filename file name of file to be deleted
+     * @return list of (original path, cache path, destination path)
+     */
+    public Stack<FileSystemOperationResult> deleteUserFile(Integer id, String username, String filename) {
+        Stack<FileSystemOperationResult> resultStack = new Stack<>();
+        File file = new File(LOCAL_FILE_SYSTEM_PATH + username + File.separator + filename);
+        deleteFile(file, id, resultStack);
+        return resultStack;
     }
-    public Boolean deleteUserFolder(String username) {
+    /**
+     * delete folder of given username
+     * @param id id of current operation log
+     * @param username username of file
+     * @return list of (original path, cache path, destination path)
+     */
+    public Stack<FileSystemOperationResult> deleteUserFolder(Integer id, String username) {
         File userFolder = new File(LOCAL_FILE_SYSTEM_PATH + username);
-        return deleteFolder(userFolder);
+//        List<FileSystemOperationResult> resultStack = new ArrayList<>();
+        Stack<FileSystemOperationResult> resultStack = new Stack<>();
+        deleteFolder(userFolder, id, resultStack);
+        return resultStack;
     }
-    public Boolean deleteSystemFolder() {
+    /**
+     * delete folder of whole file system
+     * @return list of (original path, cache path, destination path)
+     */
+    public Stack<FileSystemOperationResult> deleteSystemFolder(Integer id) {
         File systemFolder = new File(LOCAL_FILE_SYSTEM_PATH);
-        return deleteFolder(systemFolder);
+//        List<FileSystemOperationResult> resultStack = new ArrayList<>();
+        Stack<FileSystemOperationResult> resultStack = new Stack<>();
+        deleteFolder(systemFolder, id, resultStack);
+        return resultStack;
     }
-    public Boolean deleteFolder(File file) {
-        if (file.isDirectory()) {
-            File[] childfiles = file.listFiles();
-            for(File childfile : childfiles){                           
-                if (!deleteFolder(childfile)) {
-                    return false;
-                }          
-            }
-        }
-        return file.delete();
-    }
-    
-//    public Boolean renameFile(String username, String oldFileName, String newFileName) {
-//        File oldFile = new File(LOCAL_FILE_SYSTEM_PATH + username, oldFileName);
-//        return oldFile.renameTo(new File(LOCAL_FILE_SYSTEM_PATH + username, newFileName));
-//    }
-    
-    public List<FileSystemOperationResult> renameFile(Integer id, String username, String oldFileName, String newFileName) {
-        List<FileSystemOperationResult> resultList = new ArrayList<>();
+    /**
+     * rename one file in file system
+     * @param id id of current operation log
+     * @param username username of user
+     * @param oldFileName old file name
+     * @param newFileName new file name
+     * @return list of (original path, cache path, destination path)
+     */
+    public Stack<FileSystemOperationResult> renameFile(Integer id, String username, String oldFileName, String newFileName) {
+        Stack<FileSystemOperationResult> resultStack = new Stack<>();
         FileSystemOperationResult result = new FileSystemOperationResult();
         result.setDestination(LOCAL_FILE_SYSTEM_PATH + username + File.separator + newFileName);
         result.setCache(LOCAL_FILE_SYSTEM_CACHE_PATH + id.toString() + username + oldFileName);
@@ -107,10 +118,9 @@ public class FileSystemUtil {
         if (!originFile.renameTo(new File(result.getCache()))) {
             throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
         }
-        resultList.add(result);
-        return resultList;
+        resultStack.add(result);
+        return resultStack;
     }
-    
     public Boolean uploadFile(String username, MultipartFile file) {
         String fileName = file.getOriginalFilename();
         File filepath = new File(LOCAL_FILE_SYSTEM_PATH + username, fileName);
@@ -144,5 +154,60 @@ public class FileSystemUtil {
             }
         }
         return count;
+    }
+    /**
+     * delete a folder in file system
+     * @param file folder file to be deleted
+     * @param id id of current operation log
+     * @param resultStack list of (original path, cache path, destination path)
+     */
+    private void deleteFolder(File file, Integer id, Stack<FileSystemOperationResult> resultStack) {
+        // check whether user folder or file system folder
+        if (file.isDirectory()) {
+            File[] childfiles = file.listFiles();
+            for(File childfile : childfiles){                           
+                if (childfile.isDirectory()) {
+                    deleteFolder(childfile, id, resultStack);
+                }else {
+                    deleteFile(childfile, id, resultStack);
+                }
+            }
+            deleteEmptyFolder(file, id, resultStack);
+        }
+    }
+    /**
+     * delete a file in file system
+     * @param file file to be deleted
+     * @param id id of current operation log
+     * @param resultStack list of (original path, cache path, destination path)
+     */
+    private void deleteFile(File file, Integer id, Stack<FileSystemOperationResult> resultStack) {
+        FileSystemOperationResult result = new FileSystemOperationResult();
+        result.setDestination(null);
+        String filename = file.getName();
+        String username = file.getParentFile().getName();
+        result.setCache(LOCAL_FILE_SYSTEM_CACHE_PATH + id.toString() + username + filename);
+        result.setOrigin(file.getPath());
+        if (!file.renameTo(new File(result.getCache()))) {
+            throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+        }
+        resultStack.add(result);
+    }
+    /**
+     * delete empty folder in file system
+     * @param file folder file to be deleted
+     * @param id id of current operation log
+     * @param resultStack list of (original path, cache path, destination path)
+     */
+    private void deleteEmptyFolder(File file, Integer id, Stack<FileSystemOperationResult> resultStack) {
+        FileSystemOperationResult result = new FileSystemOperationResult();
+        result.setDestination(null);
+        String username = file.getName();
+        result.setCache(LOCAL_FILE_SYSTEM_CACHE_PATH + id.toString() + username);
+        result.setOrigin(file.getPath());
+        if (!file.renameTo(new File(result.getCache()))) {
+            throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+        }
+        resultStack.add(result);
     }
 }

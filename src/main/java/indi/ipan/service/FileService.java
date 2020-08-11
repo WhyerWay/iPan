@@ -78,11 +78,13 @@ public interface FileService {
      * @param file username and file_name
      * @return (200, success, 1) if success, other if not
      */
+    @SuppressWarnings("rawtypes")
     Result deleteFile(File file);
     /**
      * delete all files under user's account
      * @param username username of user
-     * @return true if success, false if not
+     * @return (200, success, number of file affected) if success, other if not
      */
-    Boolean clearFile(String username);
+    @SuppressWarnings("rawtypes")
+    Result clearUserFile(String username);
 }

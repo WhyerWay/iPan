@@ -7,9 +7,8 @@ public enum ResultEnum {
     , UNEXPECTED_DATABASE_OPERATION_RESULT(555, "Error: Unexpected database operation result")
     , FILE_SYSTEM_OPERATION_ERROR(556, "Error: File system operation fail")
     , TARGET_FILE_NOT_EXIST(556, "Error: Target file does not exist")
-    , EMPTY_FILE_ERROR(557, "Error: Empty file");
-//    , IMPORT_IS_NAME(10003, "导入文件无内容")
-//    , IMPORT_NOT_IS_EXCEL(10004, "导入文件为不合法"),;
+    , EMPTY_FILE_ERROR(557, "Error: Empty file")
+    , MISMATCH_RESULT_OF_DATABASE_AND_FILE_SYSTEM(558, "Error: Mismatch operation result of database and file system");
     
     private Integer code;
     private String msg;

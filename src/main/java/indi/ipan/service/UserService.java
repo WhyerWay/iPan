@@ -37,7 +37,7 @@ public interface UserService {
      *     , -2 if table file delete fail
      *     , -3 if table user delete fail
      */
-    Integer deleteAccount(String username);
+//    Integer deleteAccount(String username);
     /**
      * get all user in iPan system
      * @return list of user

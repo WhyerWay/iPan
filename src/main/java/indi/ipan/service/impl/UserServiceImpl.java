@@ -82,25 +82,25 @@ public class UserServiceImpl implements UserService{
         return uf;
     }
     
-    @Override
-    public Integer deleteAccount(String username) {
-        Integer numOfFile = FileDao.countFileByUsername(username);
-        Integer resUser = userDao.deleteUser(username);
-        Integer resFile = FileDao.deleteFileByUsername(username);
-        if (resUser == 1) {
-            if (resFile.equals(numOfFile)) {
-                if (fileSystemUtil.deleteUserFolder(username)) {
-                    return 0;
-                }else {
-                    return -1;
-                }
-            }else {
-                return -2;
-            }
-        }else {
-            return -3;
-        }
-    }
+//    @Override
+//    public Integer deleteAccount(String username) {
+//        Integer numOfFile = FileDao.countFileByUsername(username);
+//        Integer resUser = userDao.deleteUser(username);
+//        Integer resFile = FileDao.deleteFileByUsername(username);
+//        if (resUser == 1) {
+//            if (resFile.equals(numOfFile)) {
+//                if (fileSystemUtil.deleteUserFolder(username)) {
+//                    return 0;
+//                }else {
+//                    return -1;
+//                }
+//            }else {
+//                return -2;
+//            }
+//        }else {
+//            return -3;
+//        }
+//    }
 
     @Override
     public List<User> getAllUser() {

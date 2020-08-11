@@ -154,12 +154,8 @@ public class FileController {
     
     @RequestMapping(value = "/menu/clear", method = RequestMethod.POST)
     @ResponseBody
-    public String clear(@RequestParam String username) {
-    	if (fileService.clearFile(username)) {
-    		return "Clear success";
-		}else {
-			return "Clear fail";
-		}
+    public Result clear(@RequestParam String username) {
+        return fileService.clearUserFile(username);
     }
     
 

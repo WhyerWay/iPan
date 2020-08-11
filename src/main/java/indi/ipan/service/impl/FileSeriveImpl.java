@@ -1,25 +1,17 @@
 package indi.ipan.service.impl;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import javax.xml.crypto.Data;
+import java.util.Stack;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -67,25 +59,73 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
     @SuppressWarnings("rawtypes")
     @Override
     public Result listFileByUsername(String username, Long current, Long size) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(username);
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setStatus(false);
+        // save operation log and get id
+        if (!logService.addOperationLog(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        // select in database
         Page<File> files = fileMapperTest.selectPage(new Page<>(current, size)
                 , new QueryWrapper<File>().eq(COLUMN_USERNAME, username));
+        // update operation status
+        userOperationLog.setStatus(true);
+        userOperationLog.setCount(files.getTotal());
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
         return resultUtil.success(files);
     }
 
     @SuppressWarnings("rawtypes")
     @Override
     public Result listFile(Long current, Long size) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername("admin");
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setStatus(false);
+        // save operation log and get id
+        if (!logService.addOperationLog(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        // select in database
         Page<File> files = fileMapperTest.selectPage(new Page<>(current, size), null);
+        // update operation status
+        userOperationLog.setStatus(true);
+        userOperationLog.setCount(files.getTotal());
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
         return resultUtil.success(files);
     }
     
     @SuppressWarnings("rawtypes")
     @Override
     public Result listFileByFilename(File file, Long current, Long size) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername("admin");
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setStatus(false);
+        // save operation log and get id
+        if (!logService.addOperationLog(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        // select in database
         Page<File> files = fileMapperTest.selectPage(new Page<>(current, size)
                 , new QueryWrapper<File>()
                 .eq(COLUMN_USERNAME, file.getUsername())
                 .like(COLUMN_FILE_NAME, file.getFileName()));
+        // update operation status
+        userOperationLog.setStatus(true);
+        userOperationLog.setCount(files.getTotal());
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
         return resultUtil.success(files);
     }
     
@@ -97,12 +137,12 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
     @SuppressWarnings("rawtypes")
     @Override
     public Result renameFile(File oldFile, File newFile) {
-        List<FileSystemOperationResult> resultList = null;
+        Stack<FileSystemOperationResult> resultStack = null;
         // create log object
         UserOperationLog userOperationLog = new UserOperationLog();
         userOperationLog.setUsername(oldFile.getUsername());
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
-        userOperationLog.setCount(1);
+        userOperationLog.setCount(1L);
         TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
         try {
             // save operation log and get id
@@ -122,7 +162,7 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
             // update file system
-            resultList = fileSystemUtil.renameFile(userOperationLog.getId()
+            resultStack = fileSystemUtil.renameFile(userOperationLog.getId()
                     , oldFile.getUsername()
                     , oldFile.getFileName()
                     , newFile.getFileName());
@@ -131,20 +171,24 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
             // rollback database
             dataSourceTransactionManager.rollback(transactionStatus);
             // rollback file system operation
-            fileSystemUtil.rollback(resultList);
+            fileSystemUtil.rollback(resultStack);
             // update operation status
             userOperationLog.setStatus(false);
-            logService.addOperationResult(userOperationLog);
+            if (!logService.addOperationResult(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
             //  throw it again so that GlobalExceptionHandler can process it
             throw e;
         }
         // commit database
         dataSourceTransactionManager.commit(transactionStatus);
         // commit file system operation
-        fileSystemUtil.commit(resultList);
+        fileSystemUtil.commit(resultStack);
         // update operation status
         userOperationLog.setStatus(true);
-        logService.addOperationResult(userOperationLog);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
         return resultUtil.success();
     }
 
@@ -214,14 +258,14 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
 
     @Override
     public Result deleteFile(File file){
-        List<FileSystemOperationResult> resultList = null;
+        Stack<FileSystemOperationResult> resultStack = null;
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(file.getUsername());
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
         TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
         try {
-            // create log object
-            UserOperationLog userOperationLog = new UserOperationLog();
-            userOperationLog.setUsername(file.getUsername());
-            userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
-            userOperationLog.setCount(1);
             // save operation log and get id
             if (!logService.addOperationLog(userOperationLog)) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
@@ -234,39 +278,91 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
             if (fileDao.deleteFile(file) != 1) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
                 }
-            resultList = fileSystemUtil.deleteFile(userOperationLog.getId(), file.getUsername(), file.getFileName());
+            // process file in file system
+            resultStack = fileSystemUtil.deleteUserFile(userOperationLog.getId(), file.getUsername(), file.getFileName());
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             // rollback database
             dataSourceTransactionManager.rollback(transactionStatus);
             // rollback file system operation
-            fileSystemUtil.rollback(resultList);
+            fileSystemUtil.rollback(resultStack);
+            // update operation status
+            userOperationLog.setStatus(false);
+            if (!logService.addOperationResult(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
             //  throw it again so that GlobalExceptionHandler can process it
             throw e;
         }
         // commit database
         dataSourceTransactionManager.commit(transactionStatus);
         // commit file system operation
-        fileSystemUtil.commit(resultList);
+        fileSystemUtil.commit(resultStack);
+        // update operation status
+        userOperationLog.setStatus(true);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
         return resultUtil.success();
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    public Boolean clearFile(String username) {
-        Integer num = fileDao.countFileByUsername(username);
-        if (num == 0) {
-            return true;
-        }
-        if (num.equals(fileDao.clearFile(username))) {
-            if (fileSystemUtil.deleteUserFolder(username)) {
-                return true;
-            }else {
-                return false;
+    public Result clearUserFile(String username) {
+        Stack<FileSystemOperationResult> resultStack = null;
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(username);
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(0L);
+        Long count = 0L;
+        TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
+        try {
+            // save operation log and get id
+            if (!logService.addOperationLog(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+                }
+            // process data in database
+            count = fileMapperTest.selectCount(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)).longValue();
+            if (count == 0) { // given username has no file in file system
+                userOperationLog.setStatus(true);
+                if (!logService.addOperationResult(userOperationLog)) {
+                    throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+                }
+                return resultUtil.success();
+            }else if (fileMapperTest.delete(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)) == 0) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
-        }else {
-            return false;
+            // process file in file system
+            resultStack = fileSystemUtil.deleteUserFolder(userOperationLog.getId(), username);
+//            if (resultStack.size() != count) {
+//                throw new CustomizedExcption(ResultEnum.MISMATCH_RESULT_OF_DATABASE_AND_FILE_SYSTEM);
+//            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            // rollback database
+            dataSourceTransactionManager.rollback(transactionStatus);
+            // rollback file system operation
+            fileSystemUtil.rollback(resultStack);
+            // update operation status
+            userOperationLog.setStatus(false);
+            if (!logService.addOperationResult(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            //  throw it again so that GlobalExceptionHandler can process it
+            throw e;
         }
-        
+        // commit database
+        dataSourceTransactionManager.commit(transactionStatus);
+        // commit file system operation
+        fileSystemUtil.commit(resultStack);
+        // update operation status
+        userOperationLog.setStatus(true);
+        userOperationLog.setCount(count);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        return resultUtil.success();
     }
 
 

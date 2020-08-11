@@ -1,6 +1,5 @@
 package indi.ipan.service.impl;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +12,6 @@ import indi.ipan.model.UserOperationLog;
 import indi.ipan.service.LogService;
 
 @Service
-@MapperScan("indi.ipan.dao")
 @Transactional(propagation = Propagation.REQUIRES_NEW)
 public class LogSeriveImpl extends ServiceImpl<LogMapperTest, UserOperationLog> implements LogService{
     @Autowired

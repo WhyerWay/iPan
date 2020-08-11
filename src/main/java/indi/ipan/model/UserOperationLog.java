@@ -10,7 +10,7 @@ public class UserOperationLog implements Serializable {
     private Integer id;
     private String username;
     private String operation;
-    private Integer count;
+    private Long count;
     private Boolean status;
     public Integer getId() {
         return id;
@@ -30,10 +30,10 @@ public class UserOperationLog implements Serializable {
     public void setOperation(String operation) {
         this.operation = operation;
     }
-    public Integer getCount() {
+    public Long getCount() {
         return count;
     }
-    public void setCount(Integer count) {
+    public void setCount(Long count) {
         this.count = count;
     }
     public Boolean getStatus() {

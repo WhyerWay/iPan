@@ -62,23 +62,23 @@ public class UserController {
 		}
     }
     
-    @RequestMapping(value = "/menu/delete-account", method = RequestMethod.POST)
-    @ResponseBody
-    public String deleteAccount(@RequestParam String username) {
-    	if (username.equals("admin")) {
-    		return "Error: Cannot delete admin account";
-		}
-    	Integer res = userService.deleteAccount(username);
-    	if (res == 0) {
-    	    return "Account delete success";
-        }else if (res == -1) {
-            return "Error: Folder delete fail";
-        }else if (res == -2) {
-            return "Error: Table user delete fail";
-        }else if (res == -3) {
-            return "Error: Table user delete fail";
-        }else {
-            return "Error: Unexpected error";
-        }
-    }
+//    @RequestMapping(value = "/menu/delete-account", method = RequestMethod.POST)
+//    @ResponseBody
+//    public String deleteAccount(@RequestParam String username) {
+//    	if (username.equals("admin")) {
+//    		return "Error: Cannot delete admin account";
+//		}
+//    	Integer res = userService.deleteAccount(username);
+//    	if (res == 0) {
+//    	    return "Account delete success";
+//        }else if (res == -1) {
+//            return "Error: Folder delete fail";
+//        }else if (res == -2) {
+//            return "Error: Table user delete fail";
+//        }else if (res == -3) {
+//            return "Error: Table user delete fail";
+//        }else {
+//            return "Error: Unexpected error";
+//        }
+//    }
 }
