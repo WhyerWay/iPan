@@ -88,7 +88,6 @@ public class FileSystemUtil {
      */
     public Stack<FileSystemOperationResult> deleteUserFolder(Integer id, String username) {
         File userFolder = new File(LOCAL_FILE_SYSTEM_PATH + username);
-//        List<FileSystemOperationResult> resultStack = new ArrayList<>();
         Stack<FileSystemOperationResult> resultStack = new Stack<>();
         deleteFolder(userFolder, id, resultStack);
         return resultStack;
@@ -99,7 +98,6 @@ public class FileSystemUtil {
      */
     public Stack<FileSystemOperationResult> deleteSystemFolder(Integer id) {
         File systemFolder = new File(LOCAL_FILE_SYSTEM_PATH);
-//        List<FileSystemOperationResult> resultStack = new ArrayList<>();
         Stack<FileSystemOperationResult> resultStack = new Stack<>();
         deleteFolder(systemFolder, id, resultStack);
         return resultStack;
@@ -125,6 +123,13 @@ public class FileSystemUtil {
         resultStack.add(result);
         return resultStack;
     }
+    /**
+     * upload a file to file system
+     * @param id id of current operation log
+     * @param username username of user
+     * @param file file to be uploaded
+     * @return list of (original path, cache path, destination path)
+     */
     public Stack<FileSystemOperationResult> uploadFile(Integer id, String username, MultipartFile file) {
         Stack<FileSystemOperationResult> resultStack = new Stack<>();
         FileSystemOperationResult result = new FileSystemOperationResult();
@@ -140,37 +145,20 @@ public class FileSystemUtil {
         }
         resultStack.add(result);
         return resultStack;
-//        File filepath = new File(LOCAL_FILE_SYSTEM_PATH + username, fileName);
-//        if (!filepath.getParentFile().exists()) {
-//            filepath.getParentFile().mkdirs();
-//        }
-//        try {
-//            file.transferTo(new File(LOCAL_FILE_SYSTEM_PATH + username + File.separator + fileName));
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return false;
-//        }
-//        return true;
     }
-    
-    public Integer uploadMultiFile(String username, MultipartFile[] file) {
-        Integer count = 0;
-        String storePath = LOCAL_FILE_SYSTEM_PATH + username;
-        File folder = new File(storePath);
-        if (!folder.exists()) {
-            folder.mkdir();
+    /**
+     * upload list of file to file system
+     * @param id id of current operation log
+     * @param username username of user
+     * @param file list of file to be uploaded
+     * @return list of (original path, cache path, destination path)
+     */
+    public Stack<FileSystemOperationResult> uploadMultiFile(Integer id, String username, MultipartFile[] file) {
+        Stack<FileSystemOperationResult> resultStack = new Stack<>();
+        for (MultipartFile fileItemFile : file) {
+            resultStack = uploadFile(id, username, fileItemFile);
         }
-        for (MultipartFile f : file) {
-            String fileName = f.getOriginalFilename();
-            try {
-                f.transferTo(new File(storePath + File.separator + fileName));
-                count++;
-            } catch (Exception e) {
-                e.printStackTrace();
-                return count;
-            }
-        }
-        return count;
+        return resultStack;
     }
     /**
      * delete a folder in file system

@@ -95,33 +95,6 @@ public class FileController {
     public Result batchUpload(@RequestParam String username
             , @RequestParam MultipartFile[] file) {
         return fileService.uploadMultiFile(username, file);
-//        ServiceResult result = fileService.uploadMultiFile(username, file);
-//        Integer index = result.getIndex();
-//        if (index > 0) {
-//            return index + " file uploaded success";
-//        }else if (index == -1){
-//            StringBuilder sb = new StringBuilder();
-//            sb.append("Error: Empty file exist\nError file name list:");
-//            for(String str : result.getErrorInfo()){
-//                sb.append(" ");
-//                sb.append(str);
-//            }
-//            return sb.toString();
-//        }else if (index == -2) {
-//            StringBuilder sb = new StringBuilder();
-//            sb.append("Error: Duplicated file name\nError file name list:");
-//            for(String str : result.getErrorInfo()){
-//                sb.append(" ");
-//                sb.append(str);
-//            }
-//            return sb.toString();
-//        }else if (index == -3) {
-//            return "Error: Insert operation in database fail";
-//        }else if (index == -4) {
-//            return "Error: Upload operation in file system fail";
-//        }else {
-//            return "Error: Unexpected error";
-//        }
     }
     
     @SuppressWarnings("rawtypes")

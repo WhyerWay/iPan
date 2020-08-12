@@ -131,7 +131,6 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         return resultUtil.success(files);
     }
 
-
     @SuppressWarnings("rawtypes")
     @Override
     public Result renameFile(File oldFile, File newFile) {
@@ -264,7 +263,7 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
                 File uploadFileItem = new File(username, fileItem.getOriginalFilename());
                 uploadFile.add(uploadFileItem);
             }
-            if (isFilenameExist(uploadFile)) { // should return which file name is invalid
+            if (isFilenameExist(uploadFile)) { // TODO should return which file name is invalid
                 throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
             }
             // update database
@@ -272,8 +271,7 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
             // update file system
-            resultStack = fileSystemUtil.uploadFile(userOperationLog.getId(), username, file);
-            int i = 1/0;
+            resultStack = fileSystemUtil.uploadMultiFile(userOperationLog.getId(), username, file);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             // rollback database
@@ -294,48 +292,13 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         fileSystemUtil.commit(resultStack);
         // update operation status
         userOperationLog.setStatus(true);
+        userOperationLog.setCount((long) file.length);
         if (!logService.addOperationResult(userOperationLog)) {
             throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
-        return resultUtil.success();
-//        ServiceResult result = new ServiceResult();
-//        List<String> errorInfo = new ArrayList<>();
-//        List<String> filenames = new ArrayList<>();
-//        // filter empty files
-//        for (MultipartFile f : file) {
-//            if (f.isEmpty()) {
-//                errorInfo.add(f.getOriginalFilename());
-//                continue;
-//            }
-//            filenames.add(f.getOriginalFilename());
-//        }
-//        if (!errorInfo.isEmpty()) {
-//            result.setIndex(-1);
-//            result.setErrorInfo(errorInfo);
-//            return result;
-//        }
-//        // filter duplicated file name
-//        errorInfo = fileDao.isMultiFilenameExist(username, filenames);
-//        if (!errorInfo.isEmpty()) {
-//            result.setIndex(-2);
-//            result.setErrorInfo(errorInfo);
-//            return result;
-//        }
-//        // insert in database
-//        Integer num_db = fileDao.addMultiFile(username, filenames);
-//        result.setIndex(num_db);
-//        if (num_db <= 0) {
-//            result.setIndex(-3);
-//            return result;
-//        }
-//        // transfer to file system
-//        Integer num_f = fileSystemUtil.uploadMultiFile(username, file);
-//        if (num_f != num_db) {
-//            result.setIndex(-4);
-//            return result;
-//        }
-//        result.setErrorInfo(null);
-//        return result;
+        Result result = resultUtil.success();
+        result.setCount((long) file.length);
+        return result;
     }
 
     @SuppressWarnings("rawtypes")
@@ -358,7 +321,7 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
                 throw new CustomizedExcption(ResultEnum.TARGET_FILE_NOT_EXIST);
             }
             // process data in database
-            if (fileDao.deleteFile(file) != 1) {
+            if (fileMapperTest.delete(new QueryWrapper<File>(file)) != 1) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
                 }
             // process file in file system
@@ -442,7 +405,9 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
         if (!logService.addOperationResult(userOperationLog)) {
             throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
-        return resultUtil.success();
+        Result result = resultUtil.success();
+        result.setCount(count);
+        return result;
     }
 
     private Boolean isFilenameExist(File file) {

@@ -56,13 +56,10 @@ public interface FileService {
     @SuppressWarnings("rawtypes")
     Result uploadFile(String username, MultipartFile file);
     /**
-     * check whether user has given file name
+     * upload list of file to file system
      * @param username username of user
-     * @param file uploaded files
-     * @return error index and error information
-     *     , 0 if success
-     *     , -1 if empty file exist, file name of empty file in errorInfo list
-     *     , -2 if duplicated file name exist, duplicated file name in errorInfo list
+     * @param file list of file to be uploaded
+     * @return (200, success, number of file) if success, others if not
      */
     @SuppressWarnings("rawtypes")
     Result uploadMultiFile(String username, MultipartFile[] file);

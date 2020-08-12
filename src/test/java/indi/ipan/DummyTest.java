@@ -2,6 +2,7 @@ package indi.ipan;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
 import org.apache.commons.collections4.map.HashedMap;
 import org.junit.jupiter.api.Test;
@@ -23,14 +24,14 @@ import indi.ipan.service.UserService;
 public class DummyTest {
     
     @Autowired
-    FileController fillController;
+    FileController fileController;
     @Autowired
     FileService fileService;
     
-    @Test
-    public void test() {
-        Result result = fillController.renameFile("1234", "3", "8");
-        System.out.println(result);
-    }
+//    @Test
+//    public void test() {
+//        Result result = fileController.delete("1234", "4");
+//        System.out.println(result);
+//    }
 
 }
