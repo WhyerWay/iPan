@@ -12,7 +12,7 @@ public interface FileService {
      * @param username username of user
      * @param current target page number
      * @param size number of item in one page
-     * @return (200, success, list of file, number of file) if success, others if not
+     * @return (200, success, number of file, list of file) if success, others if not
      */
     @SuppressWarnings("rawtypes")
     Result listFileByUsername(String username, Long current, Long size);
@@ -20,7 +20,7 @@ public interface FileService {
      * get all file information in file system
      * @param current target page number
      * @param size number of item in one page
-     * @return (200, success, list of file, number of file) if success, others if not
+     * @return (200, success, number of file, list of file) if success, others if not
      */
     @SuppressWarnings("rawtypes")
     Result listAllFile(Long current, Long size);
@@ -29,16 +29,10 @@ public interface FileService {
      * @param file file name of target file
      * @param current target page number
      * @param size number of item in one page
-     * @return (200, success, list of file, number of file) if success, others if not
+     * @return (200, success, number of file, list of file) if success, others if not
      */
     @SuppressWarnings("rawtypes")
     Result listFileByFilename(File file, Long current, Long size);
-//    /**
-//     * check whether user has file of given filename
-//     * @param file username of user and filename of file
-//     * @return true if exist, false if not
-//     */
-//    Boolean isFilenameExist(File file);
     /**
      * rename a file for given username
      * @param oldFile original filename and username

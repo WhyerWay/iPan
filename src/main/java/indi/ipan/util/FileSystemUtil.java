@@ -16,10 +16,12 @@ import indi.ipan.model.FileSystemOperationResult;
 @Component
 public class FileSystemUtil {
     private final static Logger logger = LoggerFactory.getLogger(FileSystemUtil.class);
+    
     private static final String LOCAL_FILE_SYSTEM_PATH = 
             "C:\\Users\\Administrator\\eclipse-workspace\\iPan\\src\\file_system\\";
     private static final String LOCAL_FILE_SYSTEM_CACHE_PATH = 
             "C:\\Users\\Administrator\\eclipse-workspace\\iPan\\src\\cache\\";
+    
     /**
      * commit file system operation
      * @param resultStack list of file operation path including origin, cache and destination
@@ -100,6 +102,7 @@ public class FileSystemUtil {
         File systemFolder = new File(LOCAL_FILE_SYSTEM_PATH);
         Stack<FileSystemOperationResult> resultStack = new Stack<>();
         deleteFolder(systemFolder, id, resultStack);
+        openFileSystem();
         return resultStack;
     }
     /**
@@ -156,7 +159,18 @@ public class FileSystemUtil {
     public Stack<FileSystemOperationResult> uploadMultiFile(Integer id, String username, MultipartFile[] file) {
         Stack<FileSystemOperationResult> resultStack = new Stack<>();
         for (MultipartFile fileItemFile : file) {
-            resultStack = uploadFile(id, username, fileItemFile);
+            FileSystemOperationResult result = new FileSystemOperationResult();
+            String fileName = fileItemFile.getOriginalFilename();
+            result.setDestination(LOCAL_FILE_SYSTEM_PATH + username + File.separator + fileName);
+            result.setCache(LOCAL_FILE_SYSTEM_CACHE_PATH + id.toString() + username + fileName);
+            result.setOrigin(null);
+            try {
+                fileItemFile.transferTo(new File(result.getCache()));
+            } catch (IllegalStateException | IOException e) {
+                logger.error(e.getMessage(), e);
+                throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
+            }
+            resultStack.add(result);
         }
         return resultStack;
     }
@@ -215,11 +229,13 @@ public class FileSystemUtil {
         }
         resultStack.add(result);
     }
-    private Boolean openFileSystem() { //TODO
-        File baseFolder = new File(LOCAL_FILE_SYSTEM_PATH);
-        if (!baseFolder.exists()) {
-            return baseFolder.mkdir();
+    /**
+     * create file system folder if not exist
+     */
+    private void openFileSystem() {
+        File systemFolder = new File(LOCAL_FILE_SYSTEM_PATH);
+        if (!systemFolder.exists()) {
+            systemFolder.mkdir();
         }
-        return true;
     }
 }

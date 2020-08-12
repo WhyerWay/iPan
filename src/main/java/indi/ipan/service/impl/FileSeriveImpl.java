@@ -89,7 +89,7 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
             throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
         // select in database
-        Page<File> files = fileMapperTest.selectPage(new Page<>(current, size), null);
+        Page<File> files = fileMapperTest.selectPage(new Page<File>(current, size), null);
         // update operation status
         userOperationLog.setStatus(true);
         userOperationLog.setCount(files.getTotal());
@@ -209,7 +209,6 @@ public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements
             }
             // update file system
             resultStack = fileSystemUtil.uploadFile(userOperationLog.getId(), username, file);
-            int i = 1/0;
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             // rollback database

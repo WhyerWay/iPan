@@ -1,14 +1,10 @@
 package indi.ipan.service;
 
-import java.util.List;
-
 import javax.servlet.http.HttpServletResponse;
 
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import indi.ipan.model.User;
-import indi.ipan.model.UserAndFile;
 import indi.ipan.result.Result;
 
 public interface UserService {
@@ -43,31 +39,36 @@ public interface UserService {
     Result deleteAccount(String username);
     /**
      * get all user in iPan system
-     * @return list of user
+     * @param current target page number
+     * @param size number of item in one page
+     * @return (200, success, 1, list of user) if success, others if not
      */
-    List<User> getAllUser();
+    @SuppressWarnings("rawtypes")
+    Result getAllUser(Long current, Long size);
     /**
      * check user account information
      * @param username username of user
-     * @return (username, password) and list of user's file
+     * @return (200, success, 1, user and file information) if success, others if not
      */
-    UserAndFile checkOneUser(String username);
+    @SuppressWarnings("rawtypes")
+    Result checkOneUser(String username);
     /**
      * export all user information in excel file for downloading
      * @param response http servlet response
-     * @return true if success, false if not
      */
-    Boolean downloadAllUser(HttpServletResponse response);
+    void downloadAllUser(HttpServletResponse response);
     /**
      * batch add user by excel file
      * @param file excel file, support version 2003/2007
-     * @return true if success, false if not
+     * @return (200, success, number of new user) if success, others if not
      */
-    Integer batchAddUser(MultipartFile file);
+    @SuppressWarnings("rawtypes")
+    Result batchAddUser(MultipartFile file);
     /**
      * delete all user and all file in system
      * reset administer to (admin, 123456)
-     * @return true if success, false if not
+     * @return (200, success, 1) if success, others if not
      */
-//    Boolean resetSystem();
+    @SuppressWarnings("rawtypes")
+    Result resetSystem();
 }

@@ -23,13 +23,14 @@ public class FileController {
     private FileService fileService;
     
     private static final String DEFAULT_CURRENT_PAGE_NUMBER = "1";
-    private static final String DEFAULT_PAGE_SIZE = "-1";
+    private static final String DEFAULT_PAGE_SIZE = "10";
+    
     /**
      * get all filename of files under given username in page
      * @param username username of user
      * @param current target page number
      * @param size number of item in one page
-     * @return (200, success, list of file, number of file) if success, others if not
+     * @return (200, success, number of file, list of file) if success, others if not
      */
     @SuppressWarnings("rawtypes")
     @GetMapping(value = "/menu")
@@ -44,7 +45,7 @@ public class FileController {
      * @param file_name file name of target file
      * @param current target page number
      * @param size number of item in one page
-     * @return (200, success, list of file, number of file) if success, others if not
+     * @return (200, success, number of file, list of file) if success, others if not
      */
     @SuppressWarnings("rawtypes")
     @PostMapping(value = "/menu/check-file")
@@ -96,7 +97,12 @@ public class FileController {
             , @RequestParam MultipartFile[] file) {
         return fileService.uploadMultiFile(username, file);
     }
-    
+    /**
+     * delete a file from user's account
+     * @param username username of user
+     * @param file_name file name of target file
+     * @return (200, success, 1) if success, others if not
+     */
     @SuppressWarnings("rawtypes")
     @RequestMapping(value = "/menu/delete", method = RequestMethod.POST)
     @ResponseBody
@@ -107,7 +113,11 @@ public class FileController {
         file.setFileName(file_name);
         return fileService.deleteFile(file);
     }
-    
+    /**
+     * delete all file from user's account
+     * @param username username of user
+     * @return (200, success, number of file) if success, others if not
+     */
     @SuppressWarnings("rawtypes")
     @RequestMapping(value = "/menu/clear", method = RequestMethod.POST)
     @ResponseBody
