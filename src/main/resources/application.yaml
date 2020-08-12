@@ -58,7 +58,7 @@ mybatis-plus:
 logging:
    level:
       root: info
-      indi.ipan.mapper: debug
+      #indi.ipan.mapper: debug
       #indi.ipan.dao: debug
    file:
       name: debug.log
