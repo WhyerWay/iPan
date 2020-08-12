@@ -1,6 +1,7 @@
 package indi.ipan.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import indi.ipan.model.User;
+import indi.ipan.result.Result;
 import indi.ipan.service.UserService;
 
 @RestController
@@ -15,70 +17,54 @@ public class UserController {
 	@Autowired
 	private UserService userService;
 	
-    @RequestMapping(value = "/login", method = RequestMethod.POST)
-    @ResponseBody
-    public String login(@RequestParam String username
+	/**
+	 * login by username and password
+     * @param username username of new user
+     * @param password password of new user
+     * @return (200, success, 1) if success, others if not
+	 */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/login")
+    public Result login(@RequestParam String username
             , @RequestParam String password) {
-        User user = new User();
-        user.setUsername(username);
-        user.setPassword(password);
-        Integer status = userService.login(user);
-    	if (status == 0) {
-    	    return "Admin login success";
-		}else if (status == 1) {
-		    return "Login success";
-        }else if (status == -1) {
-            return "Error: username and password mismatch";
-        }else {
-            return "Error: unexpected error";
-        }
+        User user = new User(username, password);
+        return userService.login(user);
     }
-    
-    @RequestMapping(value = "/login/register", method = RequestMethod.POST)
-    @ResponseBody
-    public String register(@RequestParam String username
+    /**
+     * register a new user into system
+     * @param username username of new user
+     * @param password password of new user
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/login/register")
+    public Result register(@RequestParam String username
             , @RequestParam String password) {
-        User user = new User();
-        user.setUsername(username);
-        user.setPassword(password);
-        if (userService.register(user)) {
-            return "Register success";
-        }else {
-            return "Error: invalid username";
-        }
+        User user = new User(username, password);
+        return userService.register(user);
     }
-    
-    @RequestMapping(value = "/menu/change-password", method = RequestMethod.POST)
-    @ResponseBody
-    public String changePassword(@RequestParam String username
+    /**
+     * change password of user
+     * @param username username of user
+     * @param password new password of user
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/menu/change-password")
+    public Result changePassword(@RequestParam String username
             , @RequestParam String password) {
-        User user = new User();
-        user.setUsername(username);
-        user.setPassword(password);
-    	if (userService.changePassword(user)) {
-    		return "Password change success";
-		}else {
-			return "Error: Password change fail";
-		}
+        User user = new User(username, password);
+        return userService.changePassword(user);
     }
-    
-//    @RequestMapping(value = "/menu/delete-account", method = RequestMethod.POST)
-//    @ResponseBody
-//    public String deleteAccount(@RequestParam String username) {
-//    	if (username.equals("admin")) {
-//    		return "Error: Cannot delete admin account";
-//		}
-//    	Integer res = userService.deleteAccount(username);
-//    	if (res == 0) {
-//    	    return "Account delete success";
-//        }else if (res == -1) {
-//            return "Error: Folder delete fail";
-//        }else if (res == -2) {
-//            return "Error: Table user delete fail";
-//        }else if (res == -3) {
-//            return "Error: Table user delete fail";
-//        }else {
-//            return "Error: Unexpected error";
-//        }
-//    }
+    /**
+     * delete given username from database
+     * delete folder of given username from local file system
+     * @param username username of user
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/menu/delete-account")
+    public Result deleteAccount(@RequestParam String username) {
+        return userService.deleteAccount(username);
+    }
 }

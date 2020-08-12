@@ -5,24 +5,43 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.List;
+import java.util.Stack;
 
+import javax.jws.soap.SOAPBinding.Use;
 import javax.management.RuntimeErrorException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 
 import org.mybatis.spring.annotation.MapperScan;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import indi.ipan.dao.FileDao;
 import indi.ipan.dao.LogDao;
 import indi.ipan.dao.UserDao;
+import indi.ipan.exception.CustomizedExcption;
+import indi.ipan.exception.ResultEnum;
+import indi.ipan.mapper.FileMapperTest;
+import indi.ipan.mapper.UserMapperTest;
 import indi.ipan.model.File;
+import indi.ipan.model.FileSystemOperationResult;
 import indi.ipan.model.User;
 import indi.ipan.model.UserAndFile;
 import indi.ipan.model.UserOperationLog;
+import indi.ipan.result.Result;
+import indi.ipan.result.ResultUtil;
+import indi.ipan.service.FileService;
 import indi.ipan.service.LogService;
 import indi.ipan.service.UserService;
 import indi.ipan.util.ExcelUtil;
@@ -30,77 +49,179 @@ import indi.ipan.util.FileSystemUtil;
 
 @Service
 @MapperScan("indi.ipan.dao")
-public class UserServiceImpl implements UserService{
+public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implements UserService{
+    @Autowired
+    UserMapperTest userMapperTest;
+    @Autowired
+    ResultUtil resultUtil;
+    @Autowired
+    FileService fileService;
+    @Autowired
+    FileMapperTest fileMapperTest;
     @Autowired
     private UserDao userDao;
-    @Autowired
-    private FileDao FileDao;
+//    @Autowired
+//    private FileDao FileDao;
     @Autowired
     private LogService logService;
     @Autowired
     private FileSystemUtil fileSystemUtil;
     @Autowired
     private ExcelUtil excelUtil;
+    @Autowired
+    DataSourceTransactionManager dataSourceTransactionManager;
+    @Autowired
+    TransactionDefinition transactionDefinition;
     
+    private final static Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+    
+    private static final String COLUMN_USERNAME = "username";
+//    private static final Long DEFAULT_CURRENT_PAGE_NUMBER = 1L;
+//    private static final Long DEFAULT_PAGE_SIZE = -1L;
+    
+    @SuppressWarnings("rawtypes")
     @Override
-    public Boolean register(User user) {
-        if (userDao.isUsernameExist(user) == null 
-                && userDao.addUser(user) == 1) {
-            return true;
-        }else {
-            return false;
+    @Transactional
+    public Result register(User user) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(user.getUsername());
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
+        // save operation log and get id
+        if (!logService.addOperationLog(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
+        // validate username
+        if (this.isUsernameExist(user)) {
+            throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
+        }
+        // update database
+        if (userMapperTest.insert(user) != 1) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        userOperationLog.setStatus(true);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        return resultUtil.success();
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    public Integer login(User user) {
-        if (userDao.matchPassword(user) != null) {
-            if (user.getUsername().equals("admin")) {
-                return 0;
-            }else {
-                return 1;
-            }
-        }else {
-            return -1;
+    public Result login(User user) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(user.getUsername());
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
+        // save operation log and get id
+        if (!logService.addOperationLog(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
+        // search in database
+        if (userMapperTest.selectCount(new QueryWrapper<>(user)) != 1) {
+            throw new CustomizedExcption(ResultEnum.MISMATCH_USERNAME_AND_PASSWORD);
+        }
+        // update log
+        userOperationLog.setStatus(true);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        return resultUtil.success();
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    public Boolean changePassword(User user) {
-        if (userDao.changePassword(user) == 1) {
-            return true;
-        }else {
-            return false;
+    @Transactional
+    public Result changePassword(User user) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(user.getUsername());
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
+        // save operation log and get id
+        if (!logService.addOperationLog(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
+        // update database
+        if (userMapperTest.update(user
+                , new QueryWrapper<User>()
+                .eq(COLUMN_USERNAME, user.getUsername())) != 1) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        // update log
+        userOperationLog.setStatus(true);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        return resultUtil.success();
     }
 
     @Override
     public UserAndFile checkOneUser(String username) {
         UserAndFile uf = new UserAndFile();
-        uf.setUser(userDao.getOneUser(username));
-        uf.setFile(FileDao.getAllFileByUsername(username));
+//        uf.setUser(userDao.getOneUser(username));
+//        uf.setFile(FileDao.getAllFileByUsername(username));
+        uf.setUser(userMapperTest.selectOne(new QueryWrapper<User>().eq(COLUMN_USERNAME, username)));
+        uf.setFile(fileMapperTest.selectList(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)));
         return uf;
     }
     
-//    @Override
-//    public Integer deleteAccount(String username) {
-//        Integer numOfFile = FileDao.countFileByUsername(username);
-//        Integer resUser = userDao.deleteUser(username);
-//        Integer resFile = FileDao.deleteFileByUsername(username);
-//        if (resUser == 1) {
-//            if (resFile.equals(numOfFile)) {
-//                if (fileSystemUtil.deleteUserFolder(username)) {
-//                    return 0;
-//                }else {
-//                    return -1;
-//                }
-//            }else {
-//                return -2;
-//            }
-//        }else {
-//            return -3;
-//        }
-//    }
+    @SuppressWarnings("rawtypes")
+    @Override
+    public Result deleteAccount(String username) {
+        Stack<FileSystemOperationResult> resultStack = null;
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(username);
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
+        TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
+        try {
+            // save operation log and get id
+            if (!logService.addOperationLog(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            // validate username
+            if (username.equals("admin")) {
+                throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
+            }
+            // update database
+            if (userMapperTest.delete(new QueryWrapper<User>().eq(COLUMN_USERNAME, username)) != 1) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            if (fileMapperTest.selectCount(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)) != 0 
+                    && fileMapperTest.delete(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)) == 0) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            // update file system
+            resultStack = fileSystemUtil.deleteUserFolder(userOperationLog.getId(), username);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            // rollback database
+            dataSourceTransactionManager.rollback(transactionStatus);
+            // rollback file system operation
+            fileSystemUtil.rollback(resultStack);
+            // update operation status
+            userOperationLog.setStatus(false);
+            if (!logService.addOperationResult(userOperationLog)) {
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }
+            //  throw it again so that GlobalExceptionHandler can process it
+            throw e;
+        }
+        // commit database
+        dataSourceTransactionManager.commit(transactionStatus);
+        // commit file system operation
+        fileSystemUtil.commit(resultStack);
+        // update operation status
+        userOperationLog.setStatus(true);
+        if (!logService.addOperationResult(userOperationLog)) {
+            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+        }
+        return resultUtil.success();
+    }
 
     @Override
     public List<User> getAllUser() {
@@ -174,4 +295,11 @@ public class UserServiceImpl implements UserService{
 //        res = userDao.addUser(admin).equals(1) ? true : false;
 //        return res;
 //    }
+    private Boolean isUsernameExist(User user) {
+        if (userMapperTest.selectCount(new QueryWrapper<User>()
+                .eq(COLUMN_USERNAME, user.getUsername())) == 1) {
+            return true;
+        }
+        return false;
+    }
 }

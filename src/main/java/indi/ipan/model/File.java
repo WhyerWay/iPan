@@ -12,25 +12,32 @@ public class File implements Serializable {
 	private String username;
 	
 	public File() {}
+	
 	public File(String username, String fileName) {
 	    this.username = username;
 	    this.fileName = fileName;
 	}
+	
 	public Integer getId() {
 		return id;
 	}
+	
 	public void setId(Integer id) {
 		this.id = id;
 	}
+	
 	public String getFileName() {
         return fileName;
     }
+	
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }
+    
     public String getUsername() {
 		return username;
 	}
+    
 	public void setUsername(String username) {
 		this.username = username;
 	}

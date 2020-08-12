@@ -9,35 +9,38 @@ import org.springframework.web.multipart.MultipartFile;
 
 import indi.ipan.model.User;
 import indi.ipan.model.UserAndFile;
+import indi.ipan.result.Result;
 
 public interface UserService {
     /**
      * register a new user into system
      * @param user username and password of new user
-     * @return true if register success, false if not
+     * @return (200, success, 1) if success, others if not
      */
-    Boolean register(User user);
+    @SuppressWarnings("rawtypes")
+    Result register(User user);
     /**
      * login by username and password
      * @param user username and password of user
-     * @return -1 if fail, 0 if admin login success, 1 if normal user login success
+     * @return (200, success, 1) if success, others if not
      */
-    Integer login(User user);
+    @SuppressWarnings("rawtypes")
+    Result login(User user);
     /**
      * change password of user
-     * @param user username and password of user
-     * @return true if success, false if not
+     * @param user username and new password of user
+     * @return (200, success, 1) if success, others if not
      */
-    Boolean changePassword(User user);
+    @SuppressWarnings("rawtypes")
+    Result changePassword(User user);
     /**
      * delete given username from database
      * delete folder of given username from local file system
-     * @param user username of user
-     * @return 0 if success, -1 if folder delete fail
-     *     , -2 if table file delete fail
-     *     , -3 if table user delete fail
+     * @param username username of user
+     * @return (200, success, 1) if success, others if not
      */
-//    Integer deleteAccount(String username);
+    @SuppressWarnings("rawtypes")
+    Result deleteAccount(String username);
     /**
      * get all user in iPan system
      * @return list of user

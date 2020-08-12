@@ -8,7 +8,6 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Description;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionDefinition;
@@ -18,16 +17,13 @@ import org.springframework.web.multipart.MultipartFile;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
-import indi.ipan.dao.FileDao;
 import indi.ipan.exception.CustomizedExcption;
 import indi.ipan.exception.ResultEnum;
 import indi.ipan.mapper.FileMapperTest;
 import indi.ipan.model.File;
 import indi.ipan.model.FileSystemOperationResult;
-import indi.ipan.model.ServiceResult;
 import indi.ipan.model.UserOperationLog;
 import indi.ipan.result.Result;
 import indi.ipan.result.ResultUtil;
@@ -38,8 +34,6 @@ import indi.ipan.util.FileSystemUtil;
 @Service
 @MapperScan("indi.ipan.dao")
 public class FileSeriveImpl extends ServiceImpl<FileMapperTest, File> implements FileService {
-    @Autowired
-    private FileDao fileDao;
     @Autowired
     private LogService logService;
     @Autowired
