@@ -9,7 +9,9 @@ public enum ResultEnum {
     , FILE_SYSTEM_OPERATION_ERROR(556, "Error: File system operation fail")
     , TARGET_FILE_NOT_EXIST(556, "Error: Target file does not exist")
     , EMPTY_FILE_ERROR(557, "Error: Empty file")
-    , MISMATCH_RESULT_OF_DATABASE_AND_FILE_SYSTEM(558, "Error: Mismatch operation result of database and file system");
+    , MISMATCH_RESULT_OF_DATABASE_AND_FILE_SYSTEM(558, "Error: Mismatch operation result of database and file system")
+    , UNEXPECT_MAIL_ERROR(559, "Error: Unexpected mailing error")
+    , UNEXPECTED_DATABASE_LOGGING_OPERATION_RESULT(560, "Error: Unexpected database operation result when logging");
     
     private Integer code;
     private String msg;

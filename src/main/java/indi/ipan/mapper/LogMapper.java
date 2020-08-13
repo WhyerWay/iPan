@@ -4,9 +4,9 @@ import org.apache.ibatis.annotations.Mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
-import indi.ipan.model.User;
+import indi.ipan.model.UserOperationLog;
 
 @Mapper
-public interface UserMapperTest extends BaseMapper<User>{
+public interface LogMapper extends BaseMapper<UserOperationLog>{
 
 }

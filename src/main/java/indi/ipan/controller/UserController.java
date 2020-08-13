@@ -44,14 +44,44 @@ public class UserController {
         return userService.register(user);
     }
     /**
+     * prepare to bind email address
+     * @param username username of user
+     * @param email email address
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/login/register-email")
+    public Result registerEmail(@RequestParam String username
+            , @RequestParam String email) {
+        User user = new User(username);
+        user.setEmail(email);
+        return userService.registerEmail(user);
+    }
+    /**
+     * bind email address
+     * @param username username of user
+     * @param email email address
+     * @param code code received by email
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    @PostMapping(value = "/login/bind-email")
+    public Result bindEmail(@RequestParam String username
+            , @RequestParam String email
+            , @RequestParam String code) {
+        User user = new User(username);
+        user.setEmail(email);
+        return userService.bindEmail(user, code);
+    }
+    /**
      * change password of user
      * @param username username of user
      * @param password new password of user
      * @return (200, success, 1) if success, others if not
      */
     @SuppressWarnings("rawtypes")
-    @PostMapping(value = "/menu/change-password")
-    public Result changePassword(@RequestParam String username
+    @PostMapping(value = "/menu/reset-password")
+    public Result resetPassword(@RequestParam String username
             , @RequestParam String password) {
         User user = new User(username, password);
         return userService.changePassword(user);

@@ -2,7 +2,6 @@ package indi.ipan.service.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.List;
 import java.util.Stack;
@@ -10,11 +9,11 @@ import java.util.Stack;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.mail.MailException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
@@ -27,8 +26,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import indi.ipan.exception.CustomizedExcption;
 import indi.ipan.exception.ResultEnum;
-import indi.ipan.mapper.FileMapperTest;
-import indi.ipan.mapper.UserMapperTest;
+import indi.ipan.mapper.FileMapper;
+import indi.ipan.mapper.UserMapper;
 import indi.ipan.model.File;
 import indi.ipan.model.FileSystemOperationResult;
 import indi.ipan.model.User;
@@ -36,25 +35,24 @@ import indi.ipan.model.UserAndFile;
 import indi.ipan.model.UserOperationLog;
 import indi.ipan.result.Result;
 import indi.ipan.result.ResultUtil;
-import indi.ipan.service.FileService;
 import indi.ipan.service.LogService;
+import indi.ipan.service.SecurityService;
 import indi.ipan.service.UserService;
 import indi.ipan.util.ExcelUtil;
 import indi.ipan.util.FileSystemUtil;
 
 @Service
-@MapperScan("indi.ipan.dao")
-public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implements UserService{
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService{
     @Autowired
-    UserMapperTest userMapperTest;
+    private UserMapper userMapper;
     @Autowired
-    ResultUtil resultUtil;
+    private ResultUtil resultUtil;
     @Autowired
-    FileService fileService;
-    @Autowired
-    FileMapperTest fileMapperTest;
+    private FileMapper fileMapper;
     @Autowired
     private LogService logService;
+    @Autowired
+    private SecurityService securityService;
     @Autowired
     private FileSystemUtil fileSystemUtil;
     @Autowired
@@ -78,24 +76,72 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(1L);
         // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationLog(userOperationLog);
         // validate username
         if (this.isUsernameExist(user)) {
             throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
         }
         // update database
-        if (userMapperTest.insert(user) != 1) {
+        if (userMapper.insert(user) != 1) {
             throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
-        userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true);
         return resultUtil.success();
     }
 
+    @SuppressWarnings("rawtypes")
+    @Override
+    public Result registerEmail(User user) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(user.getUsername());
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
+        // save operation log and get id
+        logService.addOperationLog(userOperationLog);
+        try {
+            // send code by email
+            securityService.sendCode(user.getEmail(), null);
+        } catch (MailException e) {
+            logger.error(e.getMessage(), e);
+            // update log
+            logService.addOperationResult(userOperationLog, false);
+            throw new CustomizedExcption(ResultEnum.UNEXPECT_MAIL_ERROR);
+        }
+        // update log
+        logService.addOperationResult(userOperationLog, true);
+        return resultUtil.success();
+    }
+
+    @SuppressWarnings("rawtypes")
+    @Override
+    public Result bindEmail(User user, String code) {
+        // create log object
+        UserOperationLog userOperationLog = new UserOperationLog();
+        userOperationLog.setUsername(user.getUsername());
+        userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
+        userOperationLog.setCount(1L);
+        // save operation log and get id
+        logService.addOperationLog(userOperationLog);
+        // verify code
+        if (securityService.verifyCodeByEmail(user.getEmail(), code)) {
+            // update database
+            if (userMapper.update(user, new QueryWrapper<User>().eq("username", user.getUsername())) != 1) {
+                // update log
+                logService.addOperationResult(userOperationLog, false);
+                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
+            }else {
+                // update log
+                logService.addOperationResult(userOperationLog, true);
+                return resultUtil.success();
+            }
+        }else {
+            // update log
+            logService.addOperationResult(userOperationLog, false);
+            throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
+        }
+    }
+    
     @SuppressWarnings("rawtypes")
     @Override
     public Result login(User user) {
@@ -105,18 +151,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(1L);
         // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationLog(userOperationLog);
         // search in database
-        if (userMapperTest.selectCount(new QueryWrapper<>(user)) != 1) {
+        if (userMapper.selectCount(new QueryWrapper<>(user)) != 1) {
             throw new CustomizedExcption(ResultEnum.MISMATCH_USERNAME_AND_PASSWORD);
         }
         // update log
-        userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true);
         return resultUtil.success();
     }
 
@@ -130,20 +171,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(1L);
         // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationLog(userOperationLog);
         // update database
-        if (userMapperTest.update(user
+        if (userMapper.update(user
                 , new QueryWrapper<User>()
                 .eq(COLUMN_USERNAME, user.getUsername())) != 1) {
             throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
         }
         // update log
-        userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true);
         return resultUtil.success();
     }
 
@@ -156,18 +192,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(1L);
         // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationLog(userOperationLog);
         // search in database
         UserAndFile uf = new UserAndFile();
-        uf.setUser(userMapperTest.selectOne(new QueryWrapper<User>().eq(COLUMN_USERNAME, username)));
-        uf.setFile(fileMapperTest.selectList(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)));
+        uf.setUser(userMapper.selectOne(new QueryWrapper<User>().eq(COLUMN_USERNAME, username)));
+        uf.setFile(fileMapper.selectList(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)));
         // update log
-        userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true);
         return resultUtil.success(uf);
     }
     
@@ -183,19 +214,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
         try {
             // save operation log and get id
-            if (!logService.addOperationLog(userOperationLog)) {
-                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-            }
+            logService.addOperationLog(userOperationLog);
             // validate username
             if (username.equals("admin")) {
                 throw new CustomizedExcption(ResultEnum.INVALID_INPUT);
             }
             // update database
-            if (userMapperTest.delete(new QueryWrapper<User>().eq(COLUMN_USERNAME, username)) != 1) {
+            if (userMapper.delete(new QueryWrapper<User>().eq(COLUMN_USERNAME, username)) != 1) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
-            if (fileMapperTest.selectCount(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)) != 0 
-                    && fileMapperTest.delete(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)) == 0) {
+            if (fileMapper.selectCount(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)) != 0 
+                    && fileMapper.delete(new QueryWrapper<File>().eq(COLUMN_USERNAME, username)) == 0) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
             // update file system
@@ -207,10 +236,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
             // rollback file system operation
             fileSystemUtil.rollback(resultStack);
             // update operation status
-            userOperationLog.setStatus(false);
-            if (!logService.addOperationResult(userOperationLog)) {
-                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-            }
+            logService.addOperationResult(userOperationLog, false);
             //  throw it again so that GlobalExceptionHandler can process it
             throw e;
         }
@@ -219,10 +245,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         // commit file system operation
         fileSystemUtil.commit(resultStack);
         // update operation status
-        userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true);
         return resultUtil.success();
     }
 
@@ -235,17 +258,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(1L);
         // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationLog(userOperationLog);
         // search in database
-        Page<User> user = userMapperTest.selectPage(new Page<User>(current, size), null);
+        Page<User> user = userMapper.selectPage(new Page<User>(current, size), null);
         // update log
-        userOperationLog.setStatus(true);
-        userOperationLog.setCount(user.getTotal());
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true, user.getTotal());
         return resultUtil.success(user);
     }
 
@@ -257,11 +274,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(1L);
         // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationLog(userOperationLog);
         // prepare excel file
-        List<User> users = userMapperTest.selectList(null);
+        List<User> users = userMapper.selectList(null);
         response.setContentType("application/binary;charset=UTF-8");
         try {
             response.setHeader("Content-Disposition", "attachment;fileName=" + URLEncoder.encode("userlist.xls", "UTF-8"));
@@ -270,17 +285,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
             // update operation status
-            userOperationLog.setStatus(false);
-            if (!logService.addOperationResult(userOperationLog)) {
-                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-            }
+            logService.addOperationResult(userOperationLog, false);
             //  throw it again so that GlobalExceptionHandler can process it
             throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
         }
-        userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true);
     }
 
     @SuppressWarnings("rawtypes")
@@ -292,9 +301,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         userOperationLog.setOperation(Thread.currentThread().getStackTrace()[1].getMethodName()); // get method name
         userOperationLog.setCount(0L);
         // save operation log and get id
-        if (!logService.addOperationLog(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationLog(userOperationLog);
         InputStream in;
         List<User> users;
         try {
@@ -312,17 +319,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
             // update operation status
-            userOperationLog.setStatus(false);
-            if (!logService.addOperationResult(userOperationLog)) {
-                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-            }
+            logService.addOperationResult(userOperationLog, false);
             //  throw it again so that GlobalExceptionHandler can process it
             throw new CustomizedExcption(ResultEnum.FILE_SYSTEM_OPERATION_ERROR);
         }
+        logService.addOperationResult(userOperationLog, true);
         userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
         Result result = resultUtil.success();
         result.setCount((long) users.size());
         return result;
@@ -340,18 +342,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         TransactionStatus transactionStatus = dataSourceTransactionManager.getTransaction(transactionDefinition);
         try {
             // save operation log and get id
-            if (!logService.addOperationLog(userOperationLog)) {
-                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-            }
+            logService.addOperationLog(userOperationLog);
             // update database
-            if (userMapperTest.delete(null) == 0) {
+            if (userMapper.delete(null) == 0) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
-            if (fileMapperTest.selectCount(null) != 0 
-                    && fileMapperTest.delete(null) == 0) {
+            if (fileMapper.selectCount(null) != 0 
+                    && fileMapper.delete(null) == 0) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
-            if (userMapperTest.insert(new User("admin", "123456")) != 1) {
+            if (userMapper.insert(new User("admin", "123456")) != 1) {
                 throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
             }
             // update file system
@@ -363,10 +363,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
             // rollback file system operation
             fileSystemUtil.rollback(resultStack);
             // update operation status
-            userOperationLog.setStatus(false);
-            if (!logService.addOperationResult(userOperationLog)) {
-                throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-            }
+            logService.addOperationResult(userOperationLog, false);
             //  throw it again so that GlobalExceptionHandler can process it
             throw e;
         }
@@ -375,18 +372,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapperTest, User> implement
         // commit file system operation
         fileSystemUtil.commit(resultStack);
         // update operation status
-        userOperationLog.setStatus(true);
-        if (!logService.addOperationResult(userOperationLog)) {
-            throw new CustomizedExcption(ResultEnum.UNEXPECTED_DATABASE_OPERATION_RESULT);
-        }
+        logService.addOperationResult(userOperationLog, true);
         return resultUtil.success();
     }
     
     private Boolean isUsernameExist(User user) {
-        if (userMapperTest.selectCount(new QueryWrapper<User>()
+        if (userMapper.selectCount(new QueryWrapper<User>()
                 .eq(COLUMN_USERNAME, user.getUsername())) == 1) {
             return true;
         }
         return false;
     }
+
+
 }

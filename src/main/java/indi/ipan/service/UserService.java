@@ -16,6 +16,21 @@ public interface UserService {
     @SuppressWarnings("rawtypes")
     Result register(User user);
     /**
+     * prepare code for user to validate email address
+     * @param user username and email address of user
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    Result registerEmail(User user);
+    /**
+     * bind email address with user's account
+     * @param user user username and email address of user
+     * @param code code received from email
+     * @return (200, success, 1) if success, others if not
+     */
+    @SuppressWarnings("rawtypes")
+    Result bindEmail(User user, String code);
+    /**
      * login by username and password
      * @param user username and password of user
      * @return (200, success, 1) if success, others if not

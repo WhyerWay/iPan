@@ -7,6 +7,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import indi.ipan.model.File;
 
 @Mapper
-public interface FileMapperTest extends BaseMapper<File>{
+public interface FileMapper extends BaseMapper<File>{
 
 }

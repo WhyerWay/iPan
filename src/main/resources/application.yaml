@@ -5,16 +5,33 @@ spring:
       banner-mode: off
    output:
       ansi.enabled: always
+   http:
+      encoding.charset: UTF-8
+      encoding.enable: true
+      encoding.force: true
+   mail:
+      username: huang_qw@qq.com
+      password: 
+      host: smtp.qq.com
+      properties.mail.smtp.ssl.enable: true
+   servlet:
+      multipart:
+         max-file-size: 100MB
+         max-request-size: 100MB
+         enabled: true
+   jackson:
+      date-format: yyyy-MM-dd HH:mm:ss
+      time-zone: GMT+8
    redis:
       database: 4
       host: localhost
-      password: 
+      #password: 
       port: 6379
-      timeout: 2000
-      max-idle: 8
-      min-idle: 0
-      max-active: 8
-      max-wait: -1
+      #timeout: 2000
+      #max-idle: 8
+      #min-idle: 0
+      #max-active: 8
+      #max-wait: -1
    datasource:
       type: com.alibaba.druid.pool.DruidDataSource
       url: jdbc:mysql://localhost:3306/ipan?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true

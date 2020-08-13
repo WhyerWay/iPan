@@ -10,6 +10,7 @@ public class User implements Serializable {
 	private Integer id;
 	private String username;
     private String password;
+    private String email;
 
     public User() {}
     
@@ -46,8 +47,28 @@ public class User implements Serializable {
 		this.password = password;
 	}
 
-	@Override
+	public String getEmail() {
+        return email;
+    }
+	
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+
+    @Override
     public String toString() {
-        return "User[username=" + username + ",password=" + password + "]";
+        if (email != null) {
+            return "User[username=" + username 
+                    + ",password=" + password 
+                    + ",email=" + email 
+                    + "]";
+        }else {
+            return "User[username=" + username 
+                    + ",password=" + password 
+                    + "]";
+        }
+        
     }
 }
